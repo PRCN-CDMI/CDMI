@@ -16,16 +16,25 @@ import org.snia.cdmiserver.exception.BadRequestException;
  */
 public class JsonUtils {
 
-    public static String getValue(byte[] jsonBytes, String valueName) throws Exception{
+    public static String getValue(byte[] jsonBytes, String valueName, Boolean isMetadata) throws Exception{
         JsonFactory f = new JsonFactory();
         JsonParser jp = f.createJsonParser(jsonBytes);
-
         JsonToken tolkein;
         tolkein = jp.nextToken();// START_OBJECT
         String value = new String();
         while ((tolkein = jp.nextToken()) != JsonToken.END_OBJECT) {
             String key = jp.getCurrentName();
             if (valueName.equals(key)) { // process mimetype
+                if ("metadata".equals(key) && isMetadata) {// process metadata
+                    tolkein = jp.nextToken();
+                    while ((tolkein = jp.nextToken()) != JsonToken.END_OBJECT) {
+                        key = jp.getCurrentName();
+                        tolkein = jp.nextToken();
+                        if(key.equals(valueName)){
+                            value = jp.getText();
+                        }
+                    }// while
+                }
                 jp.nextToken();
                 value = jp.getText();
                 break;
@@ -33,4 +42,5 @@ public class JsonUtils {
         }
         return value;
     }
+    
 }

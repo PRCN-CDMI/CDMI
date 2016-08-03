@@ -53,6 +53,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
 import org.jose4j.json.JsonUtil;
@@ -383,8 +384,8 @@ public class PathResource {
      * @param range
      *            Range header value (if specified), else empty string
      */
-    //@GET
-    //@Path("/{path:.+}")
+    @GET
+    @Path("/{path:.+}")
     public Response getDataObjectOrContainer(
             @PathParam("path") String path,
             @Context HttpHeaders headers) {
@@ -412,7 +413,7 @@ public class PathResource {
                     return Response.status(Response.Status.NOT_FOUND).build();
                 } else {
                     String respStr = container.toJson(false);
-                    return Response.ok(respStr).header(
+                    return Response.ok(respStr).type(MediaType.APPLICATION_JSON).header(
                             "X-CDMI-Specification-Version", "1.0.2").build();
                 }
             } catch (Exception ex) {
@@ -426,9 +427,7 @@ public class PathResource {
                 DataObject dObj = dataObjectDao.findByPath(path);
                 if (dObj == null) {
                     return Response.status(Response.Status.NOT_FOUND).build();
-                } else {
-                    
-                    
+                } else {               
                     //Xavier: handling encrypted data object
                     if("application/jose+json".equals(dObj.getMimetype()))
                     {
@@ -462,6 +461,7 @@ public class PathResource {
                         LOG.trace("MimeType = {}", dObj.getMimetype());
                         return Response.ok(respStr).type(dObj.getMimetype()).header(
                             "X-CDMI-Specification-Version", "1.0.2").build();
+
                     }
                 } // if/else
             } catch (Exception ex) {
@@ -544,13 +544,14 @@ public class PathResource {
     @PUT
     @Path("/{path:.+}")
     @Consumes(MediaTypes.DATA_OBJECT)
-    @Produces(MediaTypes.DATA_OBJECT)
     public Response putDataObject(
             @Context HttpHeaders headers,
             @PathParam("path") String path,
             byte[] bytes) {
+        if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).equals("text/plain")) {
+            return putDataObject(path, headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).get(0), bytes);
+        }
 
-        System.out.println(path);      
         try {
             DataObject dObj = dataObjectDao.findByPath(path);
             if (dObj == null) {
@@ -595,6 +596,7 @@ public class PathResource {
      */
     @PUT
     @Path("/{path:.+}")
+    @Consumes(MediaType.TEXT_PLAIN)
     public Response putDataObject(
             @PathParam("path") String path,
             @HeaderParam("Content-Type") String contentType,
@@ -615,17 +617,14 @@ public class PathResource {
                 }
                 LOG.trace("Calling createNonCDMIByPath");
                 dObj = dataObjectDao.createNonCDMIByPath(path, contentType, dObj);
-                // return representation
-                //String respStr = dObj.toJson();
-                //return Response.ok(respStr).header(
-                 //       "X-CDMI-Specification-Version", "1.0.2").build();
+                return Response.created(URI.create(path)).type(dObj.getMimetype()).build();
             }
-            //dObj.fromJson(bytes,false);
-            return Response.created(URI.create(path)).build();
+            return Response.status(Response.Status.BAD_REQUEST).tag(
+                    "Object PUT Error : Object exists with this name").build();
         } catch (Exception ex) {
             LOG.error("Failed to find data object", ex);
             return Response.status(Response.Status.BAD_REQUEST).tag(
-                  "Object PUT Error : " + ex.toString()).build();
+                    "Object PUT Error : " + ex.toString()).build();
         }
         //throw new UnsupportedOperationException(
          //       "PathResource.putDataObject(Non-CDMI Content Type");
@@ -768,8 +767,8 @@ public class PathResource {
             try {
                 DataObject doj = dataObjectDao.findByPath(path);
                 //mimeRequest means the mimetype of object we use to update the existing object.
-                String mimeRequest = JsonUtils.getValue(bytes, "mimetype");
-                String value = JsonUtils.getValue(bytes, "value");
+                String mimeRequest = JsonUtils.getValue(bytes, "mimetype", false);
+                String value = JsonUtils.getValue(bytes, "value", false);
                 if (doj.getMimetype().equals("text/plain")) {
                     if (mimeRequest.equals("text/plain")) {
                         doj.fromJson(bytes, false);
@@ -782,7 +781,7 @@ public class PathResource {
                         doj = encryptData(doj, path, keyUsed, value);
                         return Response.ok().build();
                     } else if (mimeRequest.equals("application/jose+json")) {
-                        String key = JsonUtils.getValue(bytes, "key");
+                        String key = JsonUtils.getValue(bytes, "key", true);
                         doj.setMetadata("key", key);
                         doj.setValue(value);
                         dataObjectDao.modifyDataObject(path, doj);

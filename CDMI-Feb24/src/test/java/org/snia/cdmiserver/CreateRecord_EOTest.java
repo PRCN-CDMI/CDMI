@@ -79,7 +79,7 @@ public class CreateRecord_EOTest {
         
     }
     
-    //@Test
+    @Test
     //jump to postMyDataObject()
     public void testUpdateDataObjectWithPlainObject() throws Exception {
         HttpResponse response = client.request(POST, "/TestContainer/TestObject.txt")
@@ -99,7 +99,9 @@ public class CreateRecord_EOTest {
                 .withEntity("{\n"
                         + "\"mimetype\": \"application/jose+json\",\n"
                         + "\"value\": \"eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..TDpOLgTBXvapPNs8-yAUwQ.mVPC7z3G1ULqxpsvZ8YDYg.YzqpRpE2I06rGUO1NMtv4A\",\n"
-                        + "\"key\": \"TrlkAwiRGadZeInmNs6hFme4tjxd9HSmY2Nx5WsRumm\"\n"          //the plaintext of it is "This is a test"
+                        + "\"metadata\": {\n"
+                        +               "\"key\": \"TrlkAwiRGadZeInmNs6hFme4tjxd9HSmY2Nx5WsRumm\"\n"   //the plaintext of it is "This is a test"
+                        +               "}\n"
                         + "}\n")
                 .send();
     }

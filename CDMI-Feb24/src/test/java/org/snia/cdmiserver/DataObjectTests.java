@@ -83,10 +83,11 @@ public class DataObjectTests
         HttpResponse response = client.request(PUT, "/TestContainer/TestObject.txt")
                 .withContentType("application/cdmi-object")
                 .withAccept("application/cdmi-object")
-                .withEntity("{\n" +
-                                "\"mimetype\": \"text/plain\",\n" +
-                                "\"value\": \"This is a test\"\n" +
-                            "}\n")
+                .withCDMIVersion("1.0.2")
+                .withEntity("{\n"
+                        + "\"mimetype\": \"text/plain\",\n"
+                        + "\"value\": \"This is a test\"\n"
+                        + "}\n")
                 .send();
 
 

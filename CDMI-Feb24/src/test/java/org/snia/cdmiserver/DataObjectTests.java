@@ -74,7 +74,7 @@ public class DataObjectTests
     }
     
     //@Test
-    public void shouldCreateObject() throws Exception
+    public void shouldCreatePlainObjectByCDMI() throws Exception
     {
         //ต๗สิ
      //   given(server.hasContainer("/TestContainer/"));
@@ -82,10 +82,12 @@ public class DataObjectTests
 
         HttpResponse response = client.request(PUT, "/TestContainer/TestObject.txt")
                 .withContentType("application/cdmi-object")
-                .withEntity("{\n" +
-                                "\"mimetype\": \"text/plain\",\n" +
-                                "\"value\": \"This is a test\"\n" +
-                            "}\n")
+                .withAccept("application/cdmi-object")
+                .withCDMIVersion("1.0.2")
+                .withEntity("{\n"
+                        + "\"mimetype\": \"text/plain\",\n"
+                        + "\"value\": \"This is a test\"\n"
+                        + "}\n")
                 .send();
 
 
@@ -117,6 +119,55 @@ public class DataObjectTests
         assertThat(entity, hasJsonValueAt("$.metadata.cdmi_size").of("14"));
     }
     
+    //@Test
+    public void shouldCreateEncObjectByCDMI() throws Exception
+    {
+        //ต๗สิ
+     //   given(server.hasContainer("/TestContainer/"));
+
+
+        HttpResponse response = client.request(PUT, "/TestContainer/TestObject.txt")
+                .withContentType("application/cdmi-object")
+                .withCDMIVersion("1.0.2")
+                .withEntity("{\n"
+                        + "\"mimetype\": \"application/jose+json\",\n"
+                        + "\"value\": \"eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..TDpOLgTBXvapPNs8-yAUwQ.mVPC7z3G1ULqxpsvZ8YDYg.YzqpRpE2I06rGUO1NMtv4A\",\n"
+                        + "\"metadata\": {\n"
+                        +               "\"key\": \"TrlkAwiRGadZeInmNs6hFme4tjxd9HSmY2Nx5WsRumm\"\n"   //the plaintext of it is "This is a test"
+                        +               "}\n"
+                        + "}\n")
+                .send();
+    }
+    
+    //@Test  
+      public void shouldCreatePlainObjectByHTTP() throws Exception
+    {
+        HttpResponse response = client.request(PUT, "/TestContainer/TestObject.txt")
+                .withContentType("text/plain")
+                .withEntity("This is a test created by HTTP protocol")
+                .send();
+        assertThat(response.getStatusLine(), hasStatusCode(201));
+
+        Header[] headers = response.getAllHeaders();
+    }
+
+    @Test
+    public void shouldCreateEncObjectByHTTP() throws Exception {
+        HttpResponse response = client.request(PUT, "/TestContainer/TestObject.txt")
+                .withContentType("application/jose+json")
+                .withEntity("{\n"
+                        + "\"mimetype\": \"application/jose+json\",\n"
+                        + "\"value\": \"eyJhbGciOiJkaXIiLCJlbmMiOiJBMTI4Q0JDLUhTMjU2In0..TDpOLgTBXvapPNs8-yAUwQ.mVPC7z3G1ULqxpsvZ8YDYg.YzqpRpE2I06rGUO1NMtv4A\",\n"
+                        + "\"metadata\": {\n"
+                        +               "\"key\": \"TrlkAwiRGadZeInmNs6hFme4tjxd9HSmY2Nx5WsRumm\"\n"   //the plaintext of it is "This is a test"
+                        +               "}\n"
+                        + "}\n")
+                .send();
+        assertThat(response.getStatusLine(), hasStatusCode(201));
+
+        Header[] headers = response.getAllHeaders();
+    }
+      
     //@Test
     public void shouldUpdateContainer() throws Exception
     {
@@ -166,7 +217,7 @@ public class DataObjectTests
   */
     //get plain object, decrypt the object on the server if needed.
     //jump to getPlainDataObjectOrContainer()
-    @Test
+    //@Test
     public void shouldGetPlainObject() throws Exception {
         HttpResponse response = client.request(GET, "/TestContainer/TestObject.txt")
                 .withContentType("application/cdmi-object")

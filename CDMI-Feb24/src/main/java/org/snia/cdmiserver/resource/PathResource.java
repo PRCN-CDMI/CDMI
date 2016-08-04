@@ -548,7 +548,7 @@ public class PathResource {
             @Context HttpHeaders headers,
             @PathParam("path") String path,
             byte[] bytes) {
-        if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).equals("text/plain")) {
+        if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).equals("text/plain") || HttpHeaders.CONTENT_TYPE.equals("application/jose+json")) {
             return putDataObject(path, headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).get(0), bytes);
         }
 
@@ -566,9 +566,9 @@ public class PathResource {
                 dObj = dataObjectDao.createByPath(path, dObj);
                 // return representation
                 String respStr = dObj.toJson();
-                
                 return Response.created(URI.create(path)).
                         header("X-CDMI-Specification-Version", "1.0.2").
+                        type("application/cdmi-object").
                         entity(respStr).
                         build();
             }
@@ -596,25 +596,29 @@ public class PathResource {
      */
     @PUT
     @Path("/{path:.+}")
-    @Consumes(MediaType.TEXT_PLAIN)
+    @Consumes({MediaType.TEXT_PLAIN, MediaTypes.ENCRYPTED_OBJECT})
     public Response putDataObject(
             @PathParam("path") String path,
             @HeaderParam("Content-Type") String contentType,
             byte[] bytes) {
         LOG.trace("Non-CDMI putDataObject(): type={}, size={}, path={}",
                 contentType, bytes.length, path); 
-     
         try {
             DataObject dObj = dataObjectDao.findByPath(path);
             if (dObj == null) {
                 dObj = new DataObject();
 
-                dObj.setObjectType("application/cdmi-object");
+                dObj.setObjectType(MediaTypes.DATA_OBJECT);
+                if (MediaType.TEXT_PLAIN.equals(contentType)) {
+                    if (dObj.getValue() == null) {
+                        dObj.setValue(bytes);
+                    }
+                } else if (MediaTypes.ENCRYPTED_OBJECT.equals(contentType)) {
+                    dObj.fromJson(bytes, false);
+                }
                 // parse json
                 //dObj.fromJson(bytes, false);
-                if (dObj.getValue() == null) {
-                    dObj.setValue(bytes);
-                }
+
                 LOG.trace("Calling createNonCDMIByPath");
                 dObj = dataObjectDao.createNonCDMIByPath(path, contentType, dObj);
                 return Response.created(URI.create(path)).type(dObj.getMimetype()).build();

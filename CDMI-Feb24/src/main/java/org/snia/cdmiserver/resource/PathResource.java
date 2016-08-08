@@ -120,12 +120,15 @@ public class PathResource {
     @DELETE
     @Path("/{path:.+}")
     public Response deleteDataObjectOrContainer(
-            @PathParam("path") String path) {
-
+            @PathParam("path") String path,
+            @Context HttpHeaders headers) {
         try {
             containerDao.deleteByPath(path);
-            return Response.ok().header(
-                    "X-CDMI-Specification-Version", "1.0.2").build();
+            if (headers.getRequestHeader("X-CDMI-Specification-Version").isEmpty()) {
+                return Response.status(Response.Status.NO_CONTENT).build();
+            } else {
+                return Response.status(Response.Status.NO_CONTENT).header("X-CDMI-Specification-Version", "1.0.2").build();
+            }
         } catch (Exception ex) {
             LOG.error("Delete error", ex);
             return Response.status(Response.Status.BAD_REQUEST).tag(
@@ -158,8 +161,97 @@ public class PathResource {
      *            Path to the existing non-root container
      */
 
-    //Use the method "getPlainDataObjectOrContainer"
-    //abandoned
+    
+    @GET
+    @Path("/{path:.+}")
+    public Response getPlainObjFromPlainOrEncObjByHTTP(
+            @PathParam("path") String path,
+            @Context HttpHeaders headers) {
+        if (containerDao.isContainer(path)) {
+            try {
+                    Container container = containerDao.findByPath(path);
+                if (container == null) {
+                    return Response.status(Response.Status.NOT_FOUND).build();
+                } else {
+                    String respStr = container.toJson(false);
+                    return Response.ok(respStr).header(
+                            "X-CDMI-Specification-Version", "1.0.2").build();
+                }
+            } catch (Exception ex) {
+                return Response.status(Response.Status.NOT_FOUND).tag(
+                        "Container Read Error : " + ex.toString()).build();
+            }
+        }
+        try {
+            DataObject dObj = dataObjectDao.findByPath(path);
+            if (dObj == null) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            } else if (!("text/plain".equals(dObj.getMimetype()))) {
+                //return Response.status(Response.Status.BAD_REQUEST).tag("The resource you request is encrypted.").build();
+                dObj = decryptData(dObj, path, false);
+                if (dObj.getValue().length() == 0) {    //if the length is 0, we define the decryption failed.
+                    return Response.status(Response.Status.BAD_REQUEST).tag("Decrypt failed.").build();
+                } else {
+                    return Response.ok(dObj.getValue()).type(MediaType.TEXT_PLAIN).build();
+                }
+            } else {
+                // make http response
+                // build a JSON representation
+                String respStr = dObj.getValue();
+                //ResponseBuilder builder = Response.status(Response.Status.CREATED)
+                return Response.ok(respStr).type(MediaType.TEXT_PLAIN).build();
+            } // if/else
+        } catch (Exception ex) {
+            LOG.error("Failed to find data object", ex);
+            return Response.status(Response.Status.BAD_REQUEST).tag(
+                    "Object Fetch Error : " + ex.toString()).build();
+        }
+
+    }
+
+    
+//    @GET
+//    @Path("/{path:.+}")
+//    @Produces({MediaTypes.ENCRYPTED_OBJECT})
+//    public Response getPlainObjFromEncObjByHTTP(
+//            @PathParam("path") String path,
+//            @Context HttpHeaders headers) {
+//        if (containerDao.isContainer(path)) {
+//            try {
+//                Container container = containerDao.findByPath(path);
+//                if (container == null) {
+//                    return Response.status(Response.Status.NOT_FOUND).build();
+//                } else {
+//                    String respStr = container.toJson(false);
+//                    return Response.ok(respStr).header(
+//                            "X-CDMI-Specification-Version", "1.0.2").build();
+//                }
+//            } catch (Exception ex) {
+//                return Response.status(Response.Status.NOT_FOUND).tag(
+//                        "Container Read Error : " + ex.toString()).build();
+//            }
+//        }
+//        try {
+//            DataObject dObj = dataObjectDao.findByPath(path);
+//            if (dObj == null) {
+//                return Response.status(Response.Status.NOT_FOUND).build();
+//            } else if ("text/plain".equals(dObj.getMimetype())) {
+//                return Response.status(Response.Status.BAD_REQUEST).tag("The resource you request is plain text.").build();
+//            } else {
+//                // make http response
+//                // build a JSON representation
+//                String respStr = dObj.getValue();
+//                //ResponseBuilder builder = Response.status(Response.Status.CREATED)
+//                return Response.ok(respStr).type(MediaType.TEXT_PLAIN).build();
+//            } // if/else
+//        } catch (Exception ex) {
+//            LOG.error("Failed to find data object", ex);
+//            return Response.status(Response.Status.BAD_REQUEST).tag(
+//                    "Object Fetch Error : " + ex.toString()).build();
+//        }
+//    }
+
+@Deprecated
 //    @GET
 //    @Path("/{path:.+}")
 //    @Consumes(MediaTypes.DATA_OBJECT)
@@ -215,7 +307,7 @@ public class PathResource {
                   "Object Fetch Error : " + ex.toString()).build();
         }
     }
-
+@Deprecated
     //Use the method "getPlainDataObjectOrContainer"
     //abandoned
 //    @GET
@@ -275,9 +367,9 @@ public class PathResource {
     }
     
         
-    @GET
-    @Path("/{path:.+}")
-    @Consumes(MediaTypes.DATA_OBJECT)
+    //@GET
+    //@Path("/{path:.+}")
+    //@Consumes(MediaTypes.DATA_OBJECT)
     public Response getPlainDataObjectOrContainer(
             @PathParam("path") String path,
             @Context HttpHeaders headers) {
@@ -341,26 +433,26 @@ public class PathResource {
      * @param path
      *            Path to the root container
      */
-    @GET
-    @Path("/")
-    @Consumes(MediaTypes.CONTAINER)
-    public Response getRootContainer(
-            @PathParam("path") String path,
-            @Context HttpHeaders headers) {
-
-        LOG.trace("In PathResource.getRootContainer");
-        System.out.println("Xavier:debug get root");
-         System.out.println("Im getRootContainer -------");
-        //print headers for debug
-        if (LOG.isDebugEnabled()) {
-            for (String hdr : headers.getRequestHeaders().keySet()) {
-                LOG.debug("Hdr: {} - {}", hdr, headers.getRequestHeader(hdr));
-            }
-        }
-        System.out.println("getRootContainer path:" + path);
-        return getContainerOrDataObject(path, headers);
-
-    }
+//    @GET
+//    @Path("/")
+//    @Consumes(MediaTypes.CONTAINER)
+//    public Response getRootContainer(
+//            @PathParam("path") String path,
+//            @Context HttpHeaders headers) {
+//
+//        LOG.trace("In PathResource.getRootContainer");
+//        System.out.println("Xavier:debug get root");
+//         System.out.println("Im getRootContainer -------");
+//        //print headers for debug
+//        if (LOG.isDebugEnabled()) {
+//            for (String hdr : headers.getRequestHeaders().keySet()) {
+//                LOG.debug("Hdr: {} - {}", hdr, headers.getRequestHeader(hdr));
+//            }
+//        }
+//        System.out.println("getRootContainer path:" + path);
+//        return getContainerOrDataObject(path, headers);
+//
+//    }
 
     /**
      * <p>
@@ -384,8 +476,9 @@ public class PathResource {
      * @param range
      *            Range header value (if specified), else empty string
      */
-    @GET
-    @Path("/{path:.+}")
+    @Deprecated
+    //@GET
+    //@Path("/{path:.+}")
     public Response getDataObjectOrContainer(
             @PathParam("path") String path,
             @Context HttpHeaders headers) {
@@ -544,12 +637,12 @@ public class PathResource {
     @PUT
     @Path("/{path:.+}")
     @Consumes(MediaTypes.DATA_OBJECT)
-    public Response putDataObject(
+    public Response putDataObjectByCDMI(
             @Context HttpHeaders headers,
             @PathParam("path") String path,
             byte[] bytes) {
         if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).equals("text/plain") || HttpHeaders.CONTENT_TYPE.equals("application/jose+json")) {
-            return putDataObject(path, headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).get(0), bytes);
+            return putDataObjectByHTTP(path, headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).get(0), bytes);
         }
 
         try {
@@ -597,7 +690,7 @@ public class PathResource {
     @PUT
     @Path("/{path:.+}")
     @Consumes({MediaType.TEXT_PLAIN, MediaTypes.ENCRYPTED_OBJECT})
-    public Response putDataObject(
+    public Response putDataObjectByHTTP(
             @PathParam("path") String path,
             @HeaderParam("Content-Type") String contentType,
             byte[] bytes) {

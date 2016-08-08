@@ -63,5 +63,7 @@ public class MediaTypes {
     
     //xavier: for EO
     public static final String ENCRYPTED_OBJECT = "application/jose+json"; //jwe or cms? 
+    
+    public static final String MULTIPLE_RESPONSE = "*/*";
 
 }

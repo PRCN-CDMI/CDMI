@@ -230,23 +230,30 @@ public class DataObjectTests
          */
         System.out.println(response.getEntity());
     }
-    
+
+    public void shouldDeleteObjectByHTTP() throws Exception {
+        HttpResponse response = client.request(DELETE, "/TestContainer")
+                .send();
+    }
+
     //@Test
-    public void shouldDeleteObject() throws Exception
-    {
+    public void shouldDeleteObjectByCDMI() throws Exception {
         //given(server.hasDataObject("/TestContainer/TestObject.txt", "This is a test"));
 
 
         HttpResponse response = client.request(DELETE, "/TestContainer")
                 .withContentType("application/cdmi-object")
+                .withCDMIVersion("1.0.2")
                 .send();
 
 
-        assertThat(response.getStatusLine(), hasStatusCode(200));
+        assertThat(response.getStatusLine(), hasStatusCode(204));
 
         Header[] headers = response.getAllHeaders();
         assertThat(headers, hasHeader("Content-Length", "0"));
         assertThat(headers, hasHeader("X-CDMI-Specification-Version", "1.0.2"));
     }
+    
+
 
 }

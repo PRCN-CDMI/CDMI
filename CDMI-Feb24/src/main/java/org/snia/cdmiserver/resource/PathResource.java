@@ -34,12 +34,8 @@ import crypto.CryptoProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.net.URI;
-import java.security.Key;
-import java.util.Random;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -56,10 +52,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonToken;
-import org.jose4j.json.JsonUtil;
+import key_management.KMS;
 import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
 
@@ -106,6 +99,12 @@ public class PathResource {
     public void setDataObjectDao(
             DataObjectDao dataObjectDao) {
         this.dataObjectDao = dataObjectDao;
+    }
+
+    private KMS kmsObj;
+
+    public void setKmsObj(KMS kmsObj) {
+        this.kmsObj = kmsObj;
     }
 
     //
@@ -681,7 +680,7 @@ public class PathResource {
 
                     dataObjectDao.modifyDataObject(path, dObj);
 
-                    return Response.ok().build();
+                    return Response.status(Response.Status.NO_CONTENT).build();
                 }
                 else if ("application/jose+json".equals(dObj.getMimetype())) {
                     //如果request中含有value值，则执行密文更新密文操作
@@ -690,13 +689,26 @@ public class PathResource {
                     if (JsonUtils.getEntityNum(bytes) > 1) {
                         dataObjectDao.updateDataObject(dob, dObj);
                         encryptData(dObj, path, dObj.getMetadata().get("key"));
-                        return Response.ok().build();
+                        return Response.status(Response.Status.NO_CONTENT).build();
                     } else {
                         //如果request中不包含value值，则执行解密操作
                         dObj = decryptData(dObj, path, true);
-                        return Response.ok().build();
+                        return Response.status(Response.Status.NO_CONTENT).build();
                     }
                 }
+            }else if("application/jose+json".equals(dob.getMimetype())){
+                 //ciphertext to ciphertext
+                if("application/jose+json".equals(dObj.getMimetype())){
+                    dataObjectDao.updateDataObject(dob, dObj);                
+                    dataObjectDao.modifyDataObject(path,dObj);
+                    return Response.status(Response.Status.NO_CONTENT).build();                   
+                }
+                //encrypt an existing object
+                else{                   
+                    dObj = encryptData(dObj, path,dob.getMetadata().get("key"));
+                    return Response.status(Response.Status.NO_CONTENT).build();            
+                
+                }        
             }
 
             return Response.status(Response.Status.BAD_REQUEST).tag(
@@ -750,8 +762,47 @@ public class PathResource {
                 dObj = dataObjectDao.createNonCDMIByPath(path, contentType, dObj);
                 return Response.created(URI.create(path)).type(dObj.getMimetype()).build();
             }
+            //update                     
+            //if the input is plaintext
+            if ("text/plain".equals(contentType)) {
+                //existing data object is pliantext
+                //plaintext to plaintext
+                if ("text/plain".equals(dObj.getMimetype())) {
+                    dObj.setValue(bytes);
+                    dataObjectDao.modifyDataObject(path, dObj);
+                    return Response.status(Response.Status.NO_CONTENT).build();
+                } else if ("application/jose+json".equals(dObj.getMimetype())) {
+                    //existing data object is ciphertext
+                    //ciphertext to plaintext
+                    if (bytes.length != 0) {
+                        dObj.setValue(bytes);
+                        encryptData(dObj, path, dObj.getMetadata().get("key"));
+                        dataObjectDao.modifyDataObject(path, dObj);
+                        return Response.status(Response.Status.NO_CONTENT).build();
+                    } //如果request中不包含value值，则执行解密操作
+                    else {
+                        dObj = decryptData(dObj, path, true);
+                        return Response.status(Response.Status.NO_CONTENT).build();
+                    }
+                }
+            }
+            //if the input is ciphertext            
+            if ("application/jose+json".equals(contentType)) {
+                //ciphertext to ciphertext
+                if ("application/jose+json".equals(dObj.getMimetype())) {
+                    dObj.setValue(bytes);
+                    dataObjectDao.modifyDataObject(path, dObj);
+                    return Response.status(Response.Status.NO_CONTENT).build();
+                } //encrypt an existing object
+                else {
+                    dObj = encryptData(dObj, path, new String(bytes));
+                    return Response.status(Response.Status.NO_CONTENT).build();
+                }
+            }
             return Response.status(Response.Status.BAD_REQUEST).tag(
-                    "Object PUT Error : Object exists with this name").build();
+                    "Object PUT Error").build();
+            //return Response.status(Response.Status.BAD_REQUEST).tag(
+            //       "Object PUT Error : Object exists with this name").build();
         } catch (Exception ex) {
             LOG.error("Failed to find data object", ex);
             return Response.status(Response.Status.BAD_REQUEST).tag(

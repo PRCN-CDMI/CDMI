@@ -1,4 +1,3 @@
-
 package key_management;
 
 import net.minidev.json.JSONObject;
@@ -13,73 +12,92 @@ import java.io.*;
  * @author 310241647
  */
 public class KMS {
-    
+
     private String filePath = "C:/data/key.txt";
     
-    public static void main(String[] args) throws Exception{
-        KMS kms = new KMS();
-        
-       // Create some default usernames and keys 
-        kms.createKey("Kevin", "asdfghjk");
-        kms.createKey("Sam", "aesfghjk");
-        kms.createKey("Lilei", "qwefghjk");
-        kms.createKey("Zhaokang", "xcvfghjk");
-        kms.createKey("Guohuan", "atyuiojk");
-        kms.createKey("Zhangsan", "aghjkhjk");
-        kms.createKey("Wanger", "mnbfghjk");
-        kms.createKey("Hanmeimei", "oiufghjk");
-        
-        kms.createKey("", "");
-        kms.getKey("Kevin");
-        kms.getKey("Guohuan");
-        
-        System.out.println(kms.getKey("Guohuan"));
+    private KeySet keySet ;
+
+    public KeySet getKeySet() {
+        return keySet;
     }
-    
-    public String getKey(String username) throws Exception{
+
+    public void setKeySet(KeySet keySet) {
+        System.out.println("KeySet injection******************************************************8");
+        this.keySet = keySet;
+    }
+
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+
+//    public static void main(String[] args) throws Exception {
+//        KMS kms = new KMS();
+//
+//        // Create some default usernames and keys 
+//        kms.createKey("Kevin", "asdfghjk");
+//        kms.createKey("Sam", "aesfghjk");
+//        kms.createKey("Lilei", "qwefghjk");
+//        kms.createKey("Zhaokang", "xcvfghjk");
+//        kms.createKey("Guohuan", "atyuiojk");
+//        kms.createKey("Zhangsan", "aghjkhjk");
+//        kms.createKey("Wanger", "mnbfghjk");
+//        kms.createKey("Hanmeimei", "oiufghjk");
+//
+//        kms.createKey("", "");
+//        kms.getKey("Kevin");
+//        kms.getKey("Guohuan");
+//
+//        System.out.println(kms.getKey("Guohuan"));
+//    }
+
+    public String getKey(String userName) throws Exception {
         try {
             File f = new File(filePath);
-        InputStreamReader isr = new InputStreamReader(new FileInputStream(f));
-        BufferedReader br = new BufferedReader(isr);
-        String line = br.readLine();
-        while(line != null) {
-            Object obj=JSONValue.parse(line);
-            JSONObject jobj = (JSONObject)obj;
-            if(jobj.containsKey(username)) {
-                System.out.println(jobj.toJSONString());
-                 JSONObject temp = (JSONObject)(jobj.get(username));
-            
-                return temp.get("key").toString();
+            InputStreamReader isr = new InputStreamReader(new FileInputStream(f));
+            BufferedReader br = new BufferedReader(isr);
+            String line = br.readLine();
+            while (line != null) {
+                Object obj = JSONValue.parse(line);
+                JSONObject jobj = (JSONObject) obj;
+                if (jobj.containsKey(userName)) {
+                    System.out.println(jobj.toJSONString());
+                    JSONObject temp = (JSONObject) (jobj.get(userName));
+
+                    return temp.get("key").toString();
+                }
+                line = br.readLine();
             }
-            line = br.readLine();
-        }       
         } catch (Exception e) {
         }
-        
+
         return "Did not find the user.";
     }
-    
-    public boolean createKey(String username, String key) {
-        if(username == null) {
+
+    public boolean createKey(String userName, String key) {
+        if (userName == null) {
             System.out.println("Null username!");
             return false;
         }
-        if(key.getBytes().length != 8) {
+        if (key.getBytes().length != 8) {
             System.out.println("Key length wrong! 32 bytes string required!");
             return false;
         }
         //Struct to JsonObject
-        KeySet keySet = new KeySet(username, key);
+        //KeySet keySet = new KeySet(userName,key);
+        keySet.setKey(key);
+        keySet.setUsername(userName);
         JSONObject obj = new JSONObject();
         JSONDomain data = new JSONDomain();   // for convert
         data.setResult(keySet);
-        obj.put(username, data.getResult());
+        obj.put(userName, data.getResult());
         System.out.println(obj.toJSONString(JSONStyle.NO_COMPRESS));
         //File io
         try {
             File f = new File(filePath);
-            if(!f.exists()) 
+            if (!f.exists()) {
                 f.createNewFile();
+            }
             BufferedWriter bw = new BufferedWriter(new FileWriter(f, true));
             bw.append(obj.toJSONString(JSONStyle.NO_COMPRESS) + "\r\n");
             bw.flush();
@@ -89,14 +107,16 @@ public class KMS {
         }
         return false;
     }
-    
+
     public class JSONDomain {    // for convert struct <==> json
+
         public Object result = new JSONObject();
 
         public Object getResult() {
             return result;
         }
-        public void setResult(Object result) { 
+
+        public void setResult(Object result) {
             this.result = result;
         }
     }

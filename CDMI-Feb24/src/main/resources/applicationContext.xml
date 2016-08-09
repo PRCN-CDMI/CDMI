@@ -96,13 +96,14 @@
     </bean>
 
     <bean id="capabilityResource"              class="org.snia.cdmiserver.resource.CapabilityResource"
-                                             scope="prototype">
-         <property name="capabilityDao" ref="capabilityDao"/>
+          scope="prototype">
+        <property name="capabilityDao" ref="capabilityDao"/>
     </bean>											 
     <bean id="pathResource"                  class="org.snia.cdmiserver.resource.PathResource"
-                                             scope="prototype">
+          scope="prototype">
         <property name="containerDao" ref="containerDao"/>
         <property name="dataObjectDao" ref="dataObjectDao"/>
+        <property name="kmsObj" ref="kmsObj" />
     </bean>
 
     <!-- Application JAX-RS Providers -->
@@ -131,6 +132,15 @@
 
     <bean id="capabilityDao" class="org.snia.cdmiserver.dao.filesystem.CapabilityDaoImpl">
        
+    </bean>
+    
+    <bean id="keySet" class="key_management.KeySet">
+        <property name="username" value=""/>
+        <property name="key" value=""/>
+    </bean>
+    <bean id="kmsObj" class="key_management.KMS">
+       <property name="keySet" ref="keySet" />
+       <property name="filePath" value="C:/data/key.txt"/>
     </bean>
 
 </beans>

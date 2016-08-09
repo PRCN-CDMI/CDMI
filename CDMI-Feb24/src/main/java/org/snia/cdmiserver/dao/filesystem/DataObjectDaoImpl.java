@@ -33,6 +33,10 @@ package org.snia.cdmiserver.dao.filesystem;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 import org.snia.cdmiserver.dao.ContainerDao;
 import org.snia.cdmiserver.dao.DataObjectDao;
@@ -426,4 +430,27 @@ public class DataObjectDaoImpl implements DataObjectDao {
         }
       
     }
+
+    @Override
+    public void updateDataObject(DataObject dob, DataObject dObj) {
+        if (dob.getValue() != null) {
+            dObj.setValue(dob.getValue());
+            dObj.setMetadata("cdmi_size", Integer.toString(dob.getValue().length()));
+        }
+        if (dob.getMimetype() != null) {
+            dObj.setMimetype(dob.getMimetype());
+        }
+        if (dob.getMetadata() != null) {
+            Map<String, String> metadata = dob.getMetadata();
+            Set<String> keySet = metadata.keySet();
+            Iterator it = keySet.iterator();
+            while (it.hasNext()) {
+                String key = (String) it.next();
+                if (key != null) {
+                    dObj.setMetadata(key, metadata.get(key));
+                }
+            }
+        }  
+    }
+
 }

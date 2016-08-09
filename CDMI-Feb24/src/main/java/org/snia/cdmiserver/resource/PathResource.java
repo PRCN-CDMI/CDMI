@@ -56,6 +56,9 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.ResponseBuilder;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonParser;
+import org.codehaus.jackson.JsonToken;
 import org.jose4j.json.JsonUtil;
 import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
@@ -665,6 +668,37 @@ public class PathResource {
                         entity(respStr).
                         build();
             }
+                        //update
+            DataObject dob=new DataObject();
+            dob.fromJson(bytes, true);            
+            //if the input is plaintext
+            if("text/plain".equals(dob.getMimetype())){                
+           
+                //existing data object is pliantext
+                //plaintext to plaintext
+                if("text/plain".equals(dObj.getMimetype())){
+                    dataObjectDao.updateDataObject(dob, dObj);              
+
+                    dataObjectDao.modifyDataObject(path, dObj);
+
+                    return Response.ok().build();
+                }
+                else if ("application/jose+json".equals(dObj.getMimetype())) {
+                    //如果request中含有value值，则执行密文更新密文操作
+                    //existing data object is ciphertext
+                    //ciphertext to plaintext
+                    if (JsonUtils.getEntityNum(bytes) > 1) {
+                        dataObjectDao.updateDataObject(dob, dObj);
+                        encryptData(dObj, path, dObj.getMetadata().get("key"));
+                        return Response.ok().build();
+                    } else {
+                        //如果request中不包含value值，则执行解密操作
+                        dObj = decryptData(dObj, path, true);
+                        return Response.ok().build();
+                    }
+                }
+            }
+
             return Response.status(Response.Status.BAD_REQUEST).tag(
                   "Object PUT Error : Object exists with this name").build();
         } catch (Exception ex) {
@@ -785,6 +819,7 @@ public class PathResource {
      * returns no content
      */
     //encrypt an existing plain object or decrypt an existing encrypted object
+    @Deprecated
     @POST
     @Path("/{path:.+}")
     @Consumes(MediaTypes.DATA_OBJECT) //here input mime type is application/jwe
@@ -851,8 +886,9 @@ public class PathResource {
         //return null;
          return Response.status(Response.Status.BAD_REQUEST).build();
     }
-     
+
     //update the plain object or encrypted object with my own plain object or encrypted object
+    @Deprecated
     @POST
     @Path("/{path:.+}")
     @Consumes(MediaTypes.ENCRYPTED_OBJECT)
@@ -866,6 +902,7 @@ public class PathResource {
                 //mimeRequest means the mimetype of object we use to update the existing object.
                 String mimeRequest = JsonUtils.getValue(bytes, "mimetype", false);
                 String value = JsonUtils.getValue(bytes, "value", false);
+                //int i = JsonUtils.getEntityNum(bytes);      
                 if (doj.getMimetype().equals("text/plain")) {
                     if (mimeRequest.equals("text/plain")) {
                         doj.fromJson(bytes, false);

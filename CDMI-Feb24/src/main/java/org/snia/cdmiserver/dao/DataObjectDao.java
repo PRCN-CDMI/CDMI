@@ -97,5 +97,7 @@ public interface DataObjectDao {
     
 
     public void modifyDataObject(String path, DataObject dObj);
+    
+    public void updateDataObject(DataObject dObj, DataObject org);
 
 }

@@ -64,7 +64,7 @@ public class CreateRecord_EOTest {
         
     }
     
-    //@Test
+    @Test
     //jump to postToEndeDataObject()
     public void testDecryption() throws Exception
     {
@@ -79,7 +79,7 @@ public class CreateRecord_EOTest {
         
     }
     
-    @Test
+    //@Test
     //jump to postMyDataObject()
     public void testUpdateDataObjectWithPlainObject() throws Exception {
         HttpResponse response = client.request(POST, "/TestContainer/TestObject.txt")

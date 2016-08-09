@@ -122,10 +122,6 @@ public class DataObjectTests
     //@Test
     public void shouldCreateEncObjectByCDMI() throws Exception
     {
-        //ต๗สิ
-     //   given(server.hasContainer("/TestContainer/"));
-
-
         HttpResponse response = client.request(PUT, "/TestContainer/TestObject.txt")
                 .withContentType("application/cdmi-object")
                 .withCDMIVersion("1.0.2")

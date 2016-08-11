@@ -746,7 +746,6 @@ public class PathResource {
             DataObject dObj = dataObjectDao.findByPath(path);
             if (dObj == null) {
                 dObj = new DataObject();
-
                 dObj.setObjectType(MediaTypes.DATA_OBJECT);
                 if (MediaType.TEXT_PLAIN.equals(contentType)) {
                     if (dObj.getValue() == null) {

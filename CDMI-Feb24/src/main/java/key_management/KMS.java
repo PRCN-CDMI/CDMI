@@ -22,7 +22,6 @@ public class KMS {
     }
 
     public void setKeySet(KeySet keySet) {
-        System.out.println("KeySet injection******************************************************8");
         this.keySet = keySet;
     }
 

@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.URI;
+import java.util.List;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -166,7 +167,7 @@ public class PathResource {
     
     @GET
     @Path("/{path:.+}")
-    public Response getPlainObjFromPlainOrEncObjByHTTP(
+    public Response getObjOrContainerByHTTP(
             @PathParam("path") String path,
             @Context HttpHeaders headers) {
         if (containerDao.isContainer(path)) {
@@ -184,32 +185,35 @@ public class PathResource {
                         "Container Read Error : " + ex.toString()).build();
             }
         }
+        //get dataObject
         try {
             DataObject dObj = dataObjectDao.findByPath(path);
             if (dObj == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
-            } else if (!("text/plain".equals(dObj.getMimetype()))) {
-                //return Response.status(Response.Status.BAD_REQUEST).tag("The resource you request is encrypted.").build();
-                dObj = decryptData(dObj, path, false);
-                if (dObj.getValue().length() == 0) {    //if the length is 0, we define the decryption failed.
-                    return Response.status(Response.Status.BAD_REQUEST).tag("Decrypt failed.").build();
-                } else {
-                    return Response.ok(dObj.getValue()).type(MediaType.TEXT_PLAIN).build();
+            }
+            List<MediaType> typeList=headers.getAcceptableMediaTypes(); 
+            String authName=headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0);
+            String respStr=new String();
+            if (typeList.size()==2) {
+                //get ciphertext
+                if(kmsObj.getKey(dObj,authName)!=null){
+                    dObj = decryptData(dObj, path,kmsObj.getKey(dObj,authName), false);
+                    respStr=dObj.getValue();                                    
                 }
-            } else {
-                // make http response
-                // build a JSON representation
-                String respStr = dObj.getValue();
-                //ResponseBuilder builder = Response.status(Response.Status.CREATED)
-                return Response.ok(respStr).type(MediaType.TEXT_PLAIN).build();
-            } // if/else
-        } catch (Exception ex) {
+                else
+                    respStr=dObj.getValue(); 
+            }
+            //get plaintext
+            else if(typeList.size()==2){
+                 respStr=dObj.getValue();             
+            }
+            return Response.ok(respStr).type(MediaType.TEXT_PLAIN).build();                
+        }catch (Exception ex) {
             LOG.error("Failed to find data object", ex);
             return Response.status(Response.Status.BAD_REQUEST).tag(
-                    "Object Fetch Error : " + ex.toString()).build();
-        }
-
-    }
+                    "Object Fetch Error : " + ex.toString()).build();        
+        } 
+}
 
     
 //    @GET
@@ -309,73 +313,73 @@ public class PathResource {
                   "Object Fetch Error : " + ex.toString()).build();
         }
     }
-@Deprecated
-    //Use the method "getPlainDataObjectOrContainer"
-    //abandoned
-//    @GET
-//    @Path("/{path:.+}")
-//    @Consumes(MediaTypes.ENCRYPTED_OBJECT)
-    public Response getEncContainerOrDataObject(
-            @PathParam("path") String path,
-            @Context HttpHeaders headers) {
-
-        LOG.trace("In PathResource.getContainerOrObject, path={}", path);
-        //print headers for debug
-        if (LOG.isDebugEnabled()) {
-            for (String hdr : headers.getRequestHeaders().keySet()) {
-                LOG.debug("Hdr: {} - {}", hdr, headers.getRequestHeader(hdr));
-            }
-        }
-
-        if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).isEmpty()) {  //to check 
-          return getDataObjectOrContainer(path,headers);
-        }
-
-        // Check for container vs object
-        if (containerDao.isContainer(path)) {
-          // if container build container browser page
-          try {
-            Container container = containerDao.findByPath(path);
-            if (container == null) {
-              return Response.status(Response.Status.NOT_FOUND).build();
-            } else {
-              String respStr = container.toJson(false);
-              return Response.ok(respStr).header(
-                      "X-CDMI-Specification-Version", "1.0.2").build();
-            }
-          } catch (Exception ex) {
-            LOG.error("Failed to find container", ex);
-            return Response.status(Response.Status.NOT_FOUND).tag(
-                    "Container Read Error : " + ex.toString()).build();
-          }
-        }
-        try {
-          DataObject dObj = dataObjectDao.findByPath(path);
-          if (dObj == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
-          } else {
-            // make http response
-            // build a JSON representation
-            String respStr = decryptData(dObj, path, false).toJson();
-            //ResponseBuilder builder = Response.status(Response.Status.CREATED)
-            return Response.ok(respStr).header(
-                    "X-CDMI-Specification-Version", "1.0.2").build();
-          } // if/else
-        } catch (Exception ex) {
-            LOG.error("Failed to find data object", ex);
-          return Response.status(Response.Status.BAD_REQUEST).tag(
-                  "Object Fetch Error : " + ex.toString()).build();
-        }
-    }
+//@Deprecated
+//    //Use the method "getPlainDataObjectOrContainer"
+//    //abandoned
+////    @GET
+////    @Path("/{path:.+}")
+////    @Consumes(MediaTypes.ENCRYPTED_OBJECT)
+//    public Response getEncContainerOrDataObject(
+//            @PathParam("path") String path,
+//            @Context HttpHeaders headers) {
+//
+//        LOG.trace("In PathResource.getContainerOrObject, path={}", path);
+//        //print headers for debug
+//        if (LOG.isDebugEnabled()) {
+//            for (String hdr : headers.getRequestHeaders().keySet()) {
+//                LOG.debug("Hdr: {} - {}", hdr, headers.getRequestHeader(hdr));
+//            }
+//        }
+//
+//        if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).isEmpty()) {  //to check 
+//          return getDataObjectOrContainer(path,headers);
+//        }
+//
+//        // Check for container vs object
+//        if (containerDao.isContainer(path)) {
+//          // if container build container browser page
+//          try {
+//            Container container = containerDao.findByPath(path);
+//            if (container == null) {
+//              return Response.status(Response.Status.NOT_FOUND).build();
+//            } else {
+//              String respStr = container.toJson(false);
+//              return Response.ok(respStr).header(
+//                      "X-CDMI-Specification-Version", "1.0.2").build();
+//            }
+//          } catch (Exception ex) {
+//            LOG.error("Failed to find container", ex);
+//            return Response.status(Response.Status.NOT_FOUND).tag(
+//                    "Container Read Error : " + ex.toString()).build();
+//          }
+//        }
+//        try {
+//          DataObject dObj = dataObjectDao.findByPath(path);
+//          if (dObj == null) {
+//            return Response.status(Response.Status.NOT_FOUND).build();
+//          } else {
+//            // make http response
+//            // build a JSON representation
+//            String respStr = decryptData(dObj, path, false).toJson();
+//            //ResponseBuilder builder = Response.status(Response.Status.CREATED)
+//            return Response.ok(respStr).header(
+//                    "X-CDMI-Specification-Version", "1.0.2").build();
+//          } // if/else
+//        } catch (Exception ex) {
+//            LOG.error("Failed to find data object", ex);
+//          return Response.status(Response.Status.BAD_REQUEST).tag(
+//                  "Object Fetch Error : " + ex.toString()).build();
+//        }
+//    }
     
         
-    //@GET
-    //@Path("/{path:.+}")
-    //@Consumes(MediaTypes.DATA_OBJECT)
-    public Response getPlainDataObjectOrContainer(
+    @GET
+    @Path("/{path:.+}")
+    @Produces(MediaTypes.DATA_OBJECT)
+    public Response getObjOrContainerByCDMI(
             @PathParam("path") String path,
             @Context HttpHeaders headers) {
-        if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).isEmpty()) {  //to check 
+        if (headers.getRequestHeader(HttpHeaders.ACCEPT).isEmpty()) {  //to check 
             return getDataObjectOrContainer(path, headers);
         } 
                 // Check for container vs object
@@ -395,28 +399,32 @@ public class PathResource {
             return Response.status(Response.Status.NOT_FOUND).tag(
                         "Container Read Error : " + ex.toString()).build();
             }
-        }
-
+        }        
+        //get dataobject
         try {
             DataObject dObj = dataObjectDao.findByPath(path);
+            String respStr = new String();
             if (dObj == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
-            } else {
-                //get the mimetype to judge whether it is needed to decrypt the object before reponse
-                String mimeType = dObj.getMimetype();
-                String respStr = new String();
-                if(mimeType.equals("text/plain")){
-                    respStr = dObj.toJson();
-                }else if (mimeType.equals("application/jose+json")) {
-                    respStr = decryptData(dObj, path, false).toJson();
-                }
-                // make http response
-                // build a JSON representation
-                //String respStr = dObj.toJson();
-            //ResponseBuilder builder = Response.status(Response.Status.CREATED)
-            return Response.ok(respStr).header(
-                    "X-CDMI-Specification-Version", "1.0.2").build();
-          } // if/else
+            } else if(!headers.getRequestHeader(HttpHeaders.AUTHORIZATION).isEmpty()){
+                //
+                //get the mimetype to judge whether it is needed to decrypt the object before reponse             
+                if (dObj.getMimetype().equals("application/jose+json")) {
+                    String authName=headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0);
+                    if(kmsObj.getKey(dObj,authName)!=null){
+                        respStr = decryptData(dObj, path,kmsObj.getKey(dObj,authName), false).toJson();                                            
+                    }
+                    else
+                        respStr=dObj.toJson();                    
+                }                
+          }
+            //get plaintext
+            else{
+                respStr = dObj.toJson();         
+            }
+          return Response.ok(respStr).
+                  header("X-CDMI-Specification-Version", "1.0.2").type("application/cdmi-object").
+                  build();            
         } catch (Exception ex) {
             LOG.error("Failed to find data object", ex);
           return Response.status(Response.Status.BAD_REQUEST).tag(
@@ -644,7 +652,7 @@ public class PathResource {
             @PathParam("path") String path,
             byte[] bytes) {
         if (headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).equals("text/plain") || HttpHeaders.CONTENT_TYPE.equals("application/jose+json")) {
-            return putDataObjectByHTTP(path, headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).get(0), bytes);
+            return putDataObjectByHTTP(path, headers.getRequestHeader(HttpHeaders.CONTENT_TYPE).get(0),headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0),bytes);
         }
 
         try {
@@ -657,6 +665,11 @@ public class PathResource {
                 dObj.fromJson(bytes, false);
                 if (dObj.getValue() == null) {
                     dObj.setValue("== N/A ==");
+                }
+                //if create a ciphertext object
+                //
+                if(dObj.getMimetype().equals("application/jose+json")){
+                            //create key        
                 }
                 dObj = dataObjectDao.createByPath(path, dObj);
                 // return representation
@@ -683,31 +696,37 @@ public class PathResource {
                     return Response.status(Response.Status.NO_CONTENT).build();
                 }
                 else if ("application/jose+json".equals(dObj.getMimetype())) {
-                    //如果request中含有value值，则执行密文更新密文操作
+                    
                     //existing data object is ciphertext
                     //ciphertext to plaintext
-                    if (JsonUtils.getEntityNum(bytes) > 1) {
-                        dataObjectDao.updateDataObject(dob, dObj);
-                        encryptData(dObj, path, dObj.getMetadata().get("key"));
+                    String key=kmsObj.getKey(dObj,headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0));
+                    if(key==null){
+                        return Response.status(Response.Status.FORBIDDEN).build();                 
+                    }
+                   else if (JsonUtils.getEntityNum(bytes) > 1) {
+                        dataObjectDao.updateDataObject(dob, dObj);                       
+                        encryptData(dObj, path, key);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     } else {
-                        //如果request中不包含value值，则执行解密操作
-                        dObj = decryptData(dObj, path, true);
+                        //如果request中不包含value值，则执行解密操作                      
+                        dObj = decryptData(dObj, path,key,true);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     }
                 }
             }else if("application/jose+json".equals(dob.getMimetype())){
+                 String key=kmsObj.getKey(dObj,dObj.getMetadata().get("keyID"));
+                 if(key==null)
+                     return Response.status(Response.Status.FORBIDDEN).build();
                  //ciphertext to ciphertext
                 if("application/jose+json".equals(dObj.getMimetype())){
-                    dataObjectDao.updateDataObject(dob, dObj);                
-                    dataObjectDao.modifyDataObject(path,dObj);
-                    return Response.status(Response.Status.NO_CONTENT).build();                   
+//                    dataObjectDao.updateDataObject(dob, dObj);                
+//                    dataObjectDao.modifyDataObject(path,dObj);
+//                    return Response.status(Response.Status.NO_CONTENT).build();                   
                 }
                 //encrypt an existing object
-                else{                   
-                    dObj = encryptData(dObj, path,dob.getMetadata().get("key"));
-                    return Response.status(Response.Status.NO_CONTENT).build();            
-                
+                else{                    
+                    dObj = encryptData(dObj, path,key);
+                    return Response.status(Response.Status.NO_CONTENT).build();        
                 }        
             }
 
@@ -739,6 +758,7 @@ public class PathResource {
     public Response putDataObjectByHTTP(
             @PathParam("path") String path,
             @HeaderParam("Content-Type") String contentType,
+            @HeaderParam("Authorization") String auth,
             byte[] bytes) {
         LOG.trace("Non-CDMI putDataObject(): type={}, size={}, path={}",
                 contentType, bytes.length, path); 
@@ -746,6 +766,7 @@ public class PathResource {
             DataObject dObj = dataObjectDao.findByPath(path);
             if (dObj == null) {
                 dObj = new DataObject();
+
                 dObj.setObjectType(MediaTypes.DATA_OBJECT);
                 if (MediaType.TEXT_PLAIN.equals(contentType)) {
                     if (dObj.getValue() == null) {
@@ -772,29 +793,35 @@ public class PathResource {
                     return Response.status(Response.Status.NO_CONTENT).build();
                 } else if ("application/jose+json".equals(dObj.getMimetype())) {
                     //existing data object is ciphertext
+                    String key=kmsObj.getKey(dObj,auth);
+                    if(key==null)
+                        return Response.status(Response.Status.FORBIDDEN).build();
                     //ciphertext to plaintext
                     if (bytes.length != 0) {
-                        dObj.setValue(bytes);
-                        encryptData(dObj, path, dObj.getMetadata().get("key"));
+                        dObj.setValue(bytes);                        
+                        encryptData(dObj, path,key);
                         dataObjectDao.modifyDataObject(path, dObj);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     } //如果request中不包含value值，则执行解密操作
                     else {
-                        dObj = decryptData(dObj, path, true);
+                        dObj = decryptData(dObj, path,key,true);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     }
                 }
             }
             //if the input is ciphertext            
             if ("application/jose+json".equals(contentType)) {
+                String key= kmsObj.getKey(dObj,auth);
+                if(key==null)
+                    return Response.status(Response.Status.FORBIDDEN).build();                    
                 //ciphertext to ciphertext
                 if ("application/jose+json".equals(dObj.getMimetype())) {
-                    dObj.setValue(bytes);
-                    dataObjectDao.modifyDataObject(path, dObj);
-                    return Response.status(Response.Status.NO_CONTENT).build();
+//                    dObj.setValue(bytes);
+//                    dataObjectDao.modifyDataObject(path, dObj);
+//                    return Response.status(Response.Status.NO_CONTENT).build();
                 } //encrypt an existing object
-                else {
-                    dObj = encryptData(dObj, path, new String(bytes));
+                else {                    
+                    dObj = encryptData(dObj,path,key);                    
                     return Response.status(Response.Status.NO_CONTENT).build();
                 }
             }
@@ -869,73 +896,73 @@ public class PathResource {
      * returns no content
      */
     //encrypt an existing plain object or decrypt an existing encrypted object
-    @Deprecated
-    @POST
-    @Path("/{path:.+}")
-    @Consumes(MediaTypes.DATA_OBJECT) //here input mime type is application/jwe
-    public Response postToEndeDataObject(
-            @Context HttpHeaders headers,
-            @PathParam("path") String path,
-            byte[] bytes) {
-        File objFile, metadataFile, baseDirectory;
-        //if not a container, but a object
-
-        if (!containerDao.isContainer(path)) {
-            try {
-                DataObject doj = dataObjectDao.findByPath(path);
-                //doj.fromJson(bytes, false);
-                if (doj.getValue() != null) {
-                    DataObject tmp = new DataObject();
-                    tmp.fromJson(bytes, false);
-                    String mime = tmp.getMimetype();
-                    if (mime.equals("text/plain")) {
-                        decryptData(doj, path, true);
-                        return Response.created(URI.create(path)).build();
-                    } else if (mime.equals("application/jose+json")) {
-                        String key = RandomStringUtils.getRandomString(43);
-                        encryptData(doj, path, key);
-//                        String plaintext = doj.getValue();    //do encryption with the data object specified by @path
-//                        CryptoProvider cp = new CryptoProvider();
-//                        //read key id from the params
+//    @Deprecated
+//    @POST
+//    @Path("/{path:.+}")
+//    @Consumes(MediaTypes.DATA_OBJECT) //here input mime type is application/jwe
+//    public Response postToEndeDataObject(
+//            @Context HttpHeaders headers,
+//            @PathParam("path") String path,
+//            byte[] bytes) {
+//        File objFile, metadataFile, baseDirectory;
+//        //if not a container, but a object
+//
+//        if (!containerDao.isContainer(path)) {
+//            try {
+//                DataObject doj = dataObjectDao.findByPath(path);
+//                //doj.fromJson(bytes, false);
+//                if (doj.getValue() != null) {
+//                    DataObject tmp = new DataObject();
+//                    tmp.fromJson(bytes, false);
+//                    String mime = tmp.getMimetype();
+//                    if (mime.equals("text/plain")) {
+//                        decryptData(doj, path, true);
+//                        return Response.created(URI.create(path)).build();
+//                    } else if (mime.equals("application/jose+json")) {
 //                        String key = RandomStringUtils.getRandomString(43);
-//                        //cp.setSymkey("{\"kty\":\"oct\",\"k\":\"Fdh9u8rINxfivbrianbbVT1u232VQBZYKx1HGAGPt2D\"}");
-//                        cp.setSymkey("{\"kty\":\"oct\",\"k\":\"" + key + "\"}");
-//                        cp.setEnc_alg(ContentEncryptionAlgorithmIdentifiers.AES_128_CBC_HMAC_SHA_256);
-//                        cp.setKm_alg(KeyManagementAlgorithmIdentifiers.DIRECT);
+//                        encryptData(doj, path, key);
+////                        String plaintext = doj.getValue();    //do encryption with the data object specified by @path
+////                        CryptoProvider cp = new CryptoProvider();
+////                        //read key id from the params
+////                        String key = RandomStringUtils.getRandomString(43);
+////                        //cp.setSymkey("{\"kty\":\"oct\",\"k\":\"Fdh9u8rINxfivbrianbbVT1u232VQBZYKx1HGAGPt2D\"}");
+////                        cp.setSymkey("{\"kty\":\"oct\",\"k\":\"" + key + "\"}");
+////                        cp.setEnc_alg(ContentEncryptionAlgorithmIdentifiers.AES_128_CBC_HMAC_SHA_256);
+////                        cp.setKm_alg(KeyManagementAlgorithmIdentifiers.DIRECT);
+////
+////                        String cip = cp.doJWEEncrypt(plaintext);
+////                        //we change the content of the data object into an "encrypted" one here.
+////                        doj.setMimetype("application/jose+json"); //set the mime type here to encrypted format
+////                        //save the key into de metadata of encrypted object
+////                        doj.setMetadata("key", key);
+////                        doj.setValue(cip);
+////                        dataObjectDao.modifyDataObject(path, doj);
+////
+////                        System.out.println("XXX: " + cip);
+////                        String plain = cp.doJWEDecrypt(cip);
+////                        System.out.println("XXX: " + plain);
 //
-//                        String cip = cp.doJWEEncrypt(plaintext);
-//                        //we change the content of the data object into an "encrypted" one here.
-//                        doj.setMimetype("application/jose+json"); //set the mime type here to encrypted format
-//                        //save the key into de metadata of encrypted object
-//                        doj.setMetadata("key", key);
-//                        doj.setValue(cip);
-//                        dataObjectDao.modifyDataObject(path, doj);
-//
-//                        System.out.println("XXX: " + cip);
-//                        String plain = cp.doJWEDecrypt(cip);
-//                        System.out.println("XXX: " + plain);
-
-                        return Response.created(URI.create(path)).build();
-                    }
-                }
-               
-                
-           }
-           catch(Exception ex)
-           {
-                LOG.error("Failed to find data object", ex);
-                return Response.status(Response.Status.BAD_REQUEST)
-                        .tag("Object Fetch Error : " + ex.toString()).build();
-           }
-           
-        }  
-        else
-        {
-            System.out.println("This is a container!");
-        }
-        //return null;
-         return Response.status(Response.Status.BAD_REQUEST).build();
-    }
+//                        return Response.created(URI.create(path)).build();
+//                    }
+//                }
+//               
+//                
+//           }
+//           catch(Exception ex)
+//           {
+//                LOG.error("Failed to find data object", ex);
+//                return Response.status(Response.Status.BAD_REQUEST)
+//                        .tag("Object Fetch Error : " + ex.toString()).build();
+//           }
+//           
+//        }  
+//        else
+//        {
+//            System.out.println("This is a container!");
+//        }
+//        //return null;
+//         return Response.status(Response.Status.BAD_REQUEST).build();
+//    }
 
     //update the plain object or encrypted object with my own plain object or encrypted object
     @Deprecated
@@ -1025,11 +1052,10 @@ public class PathResource {
          return Response.status(Response.Status.BAD_REQUEST).build();
     }
 
-    private DataObject decryptData(DataObject doj, String path, Boolean modify) {
+    private DataObject decryptData(DataObject doj, String path,String key, Boolean modify) {
         String cipherText = doj.getValue();    //do decryption with the data object specified by @path
         CryptoProvider cp = new CryptoProvider();
-        //read key id from the params
-        String key = doj.getMetadata().get("key");
+        //read key id from the params        
         cp.setSymkey("{\"kty\":\"oct\",\"k\":\"" + key + "\"}");
         cp.setEnc_alg(ContentEncryptionAlgorithmIdentifiers.AES_128_CBC_HMAC_SHA_256);
         cp.setKm_alg(KeyManagementAlgorithmIdentifiers.DIRECT);

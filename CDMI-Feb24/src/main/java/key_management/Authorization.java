@@ -10,11 +10,11 @@ public class Authorization {
     private String keyId;
     private String keyValue;
 
-
     public Authorization() {
     }
 
     public Authorization(String objId, String keyId, String keyValue) {
+        System.out.println("KeySet constructor.");
         this.objId = objId;
         this.keyId = keyId;
         this.keyValue = keyValue;
@@ -46,7 +46,8 @@ public class Authorization {
 
     @Override
     public String toString() {
-        return "Authorization{" + "objId=" + objId + ", keyId=" + keyId + ", keyValue=" + keyValue + "}";
+        return "Authorization{" + "objId" + objId + ", keyId=" + keyId + ", keyValue=" + keyValue + "}";
     }
 
 }
+

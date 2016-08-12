@@ -54,7 +54,7 @@
     <!-- Register autowired components -->
 
     <context:component-scan base-package="org.snia.cdmiserver"/>
-
+    <context:component-scan base-package="key_management"/>
     <!-- Apache CXF Core Configuration -->
 
     <import resource="classpath:META-INF/cxf/cxf.xml"/>
@@ -135,12 +135,12 @@
     </bean>
     
     <bean id="auth" class="key_management.Authorization">
-        <property name="username" value=""/>
-        <property name="key" value=""/>
+        <property name="objId" value=""/>
+        <property name="keyId" value=""/>
+        <property name="keyValue" value=""/>
     </bean>
-    <bean id="kmsObj" class="key_management.KMS">
-       <property name="auth" ref="auth" />
-       <property name="filePath" value="C:/data/key.txt"/>
-    </bean>
-
+  <bean id="kmsObj" class="key_management.KMS">
+        <property name="auth" ref="auth" />
+        <property name="filePath" value="C:/data/key.txt"/>
+    </bean> 
 </beans>

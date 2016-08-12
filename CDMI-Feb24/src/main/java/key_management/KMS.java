@@ -1,13 +1,13 @@
+//KMS
 package key_management;
 
 import net.minidev.json.JSONObject;
 import net.minidev.json.JSONValue;
 import net.minidev.json.JSONArray;
-import net.minidev.json.JSONStyle;
-import net.minidev.json.parser.ParseException;
 import java.io.*;
 import java.util.UUID;
 import net.minidev.json.parser.JSONParser;
+import net.minidev.json.parser.ParseException;
 import org.snia.cdmiserver.util.RandomStringUtils;
 import org.snia.cdmiserver.model.DataObject;
 
@@ -19,15 +19,16 @@ public class KMS {
 
     private String filePath = "C:/data/key.txt";
 
-    private Authorization auth ;
+    private Authorization auth;
 
-    public Authorization getKeySet() {
+    public Authorization getAuth() {
         return auth;
     }
 
-    public void setKeySet(Authorization auth) {
+    public void setAuth(Authorization auth) {
         this.auth = auth;
     }
+
 
     public void setFilePath(String filePath) {
         this.filePath = filePath;
@@ -38,11 +39,11 @@ public class KMS {
 //        // Create some default usernames and keys 
 //        DataObject dObj = new DataObject();
 //        dObj.setObjectID("stupid");
-//        //kms.createKey(auth, "flt", dObj);
-//        System.out.println("the keyValue = " + kms.getKey("flt", dObj));
+//        //kms.createKey(auth, dObj, "flt");
+//        System.out.println("the keyValue = " + kms.getKey(dObj, "flt"));
 //    }
 
-    public String getKey(String authName, DataObject dObj) throws Exception {
+    public String getKey(DataObject dObj, String authName) throws Exception {
         try {
             File f = new File(filePath);
             InputStreamReader isr = new InputStreamReader(new FileInputStream(f));
@@ -61,31 +62,18 @@ public class KMS {
                             return tmp.getKeyValue();
                         }
                     }
-                    return "no such object.";
+                    return null;
                 }
                 line = br.readLine();
             }
-        } catch (Exception e) {
-
+        } catch (IOException | ParseException e) {
+            System.out.println(e);
         }
 
         return null;
     }
 
-    public StringBuilder getContent() throws Exception {
-        File f = new File(filePath);
-        InputStreamReader isr = new InputStreamReader(new FileInputStream(f));
-        BufferedReader br = new BufferedReader(isr);
-        String line = br.readLine();
-        StringBuilder sb = new StringBuilder();
-        while (line != null) {
-            sb.append(line);
-            line = br.readLine();
-        }
-        return sb;
-    }
-
-    public boolean createKey(String authName, DataObject dObj) throws Exception {
+    public boolean createKey(DataObject dObj, String authName) throws Exception {
         if (auth == null) {
             System.out.println("Null auth!");
             return false;
@@ -96,7 +84,7 @@ public class KMS {
 
         JSONObject jcontent = (JSONObject) obj;
         if (jcontent.get(authName) != null) {
-            if (this.getKey(authName, dObj) != null) {
+            if (this.getKey(dObj, authName) != null) {
                 return false;
             }
             //update the object of this auth
@@ -138,4 +126,19 @@ public class KMS {
         return false;
     }
 
+    private StringBuilder getContent() throws Exception {
+        File f = new File(filePath);
+        InputStreamReader isr = new InputStreamReader(new FileInputStream(f));
+        BufferedReader br = new BufferedReader(isr);
+        String line = br.readLine();
+        StringBuilder sb = new StringBuilder();
+        while (line != null) {
+            sb.append(line);
+            line = br.readLine();
+        }
+        return sb;
+    }
 }
+
+
+

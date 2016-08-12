@@ -49,7 +49,7 @@ public class CreateRecord_EOTest {
     }
 
     //≤‚ ‘
-    @Test
+    //@Test
     //jump to postToEndeDataObject()
     public void testEncryption() throws Exception {
         //step 4 instructs the server do in-place encryption

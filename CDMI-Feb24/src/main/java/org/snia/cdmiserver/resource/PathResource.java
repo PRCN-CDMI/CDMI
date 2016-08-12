@@ -44,7 +44,7 @@ import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.PUT;
-import javax.ws.rs.POST;
+import javax.ws.rs.POST;  
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -64,7 +64,6 @@ import org.snia.cdmiserver.model.DataObject;
 import org.snia.cdmiserver.util.JsonUtils;
 import org.snia.cdmiserver.util.MediaTypes;
 import org.snia.cdmiserver.util.ObjectID;
-import org.snia.cdmiserver.util.RandomStringUtils;
 
 
 /**
@@ -74,7 +73,7 @@ import org.snia.cdmiserver.util.RandomStringUtils;
  */
 public class PathResource {
     private static final Logger LOG = LoggerFactory.getLogger(PathResource.class);
-
+    
     //
     // Properties and Dependency Injection Methods
     //
@@ -191,24 +190,24 @@ public class PathResource {
             if (dObj == null) {
                 return Response.status(Response.Status.NOT_FOUND).build();
             }
-            List<MediaType> typeList=headers.getAcceptableMediaTypes(); 
-            String authName=headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0);
-            String respStr=new String();
-            if (typeList.size()==2) {
+            List<MediaType> typeList = headers.getAcceptableMediaTypes();
+
+            String respStr = new String();
+            if (typeList.size() == 2) {
                 //get ciphertext
-                if(kmsObj.getKey(dObj,authName)!=null){
-                    dObj = decryptData(dObj, path,kmsObj.getKey(dObj,authName), false);
-                    respStr=dObj.getValue();                                    
+                String authName = headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0);
+                if (kmsObj.getKey(dObj, authName) != null) {
+                    dObj = decryptData(dObj, path, kmsObj.getKey(dObj, authName), false);
+                    respStr = dObj.getValue();
+                } else {
+                    respStr = dObj.getValue();
                 }
-                else
-                    respStr=dObj.getValue(); 
+            } //get plaintext
+            else if (typeList.size() == 1) {
+                respStr = dObj.getValue();
             }
-            //get plaintext
-            else if(typeList.size()==2){
-                 respStr=dObj.getValue();             
-            }
-            return Response.ok(respStr).type(MediaType.TEXT_PLAIN).build();                
-        }catch (Exception ex) {
+            return Response.ok(respStr).type(MediaType.TEXT_PLAIN).build();
+        } catch (Exception ex) {
             LOG.error("Failed to find data object", ex);
             return Response.status(Response.Status.BAD_REQUEST).tag(
                     "Object Fetch Error : " + ex.toString()).build();        
@@ -257,7 +256,7 @@ public class PathResource {
 //        }
 //    }
 
-@Deprecated
+    @Deprecated
 //    @GET
 //    @Path("/{path:.+}")
 //    @Consumes(MediaTypes.DATA_OBJECT)
@@ -313,7 +312,7 @@ public class PathResource {
                   "Object Fetch Error : " + ex.toString()).build();
         }
     }
-//@Deprecated
+//      @Deprecated
 //    //Use the method "getPlainDataObjectOrContainer"
 //    //abandoned
 ////    @GET
@@ -379,8 +378,8 @@ public class PathResource {
     public Response getObjOrContainerByCDMI(
             @PathParam("path") String path,
             @Context HttpHeaders headers) {
-        if (headers.getRequestHeader(HttpHeaders.ACCEPT).isEmpty()) {  //to check 
-            return getDataObjectOrContainer(path, headers);
+        if (headers.getRequestHeader(HttpHeaders.ACCEPT).get(0).toString().equals("*/*")) {  //to check 
+            return getObjOrContainerByHTTP(path, headers);
         } 
                 // Check for container vs object
         if (containerDao.isContainer(path)) {
@@ -704,30 +703,33 @@ public class PathResource {
                         return Response.status(Response.Status.FORBIDDEN).build();                 
                     }
                    else if (JsonUtils.getEntityNum(bytes) > 1) {
-                        dataObjectDao.updateDataObject(dob, dObj);                       
+                        dataObjectDao.updateDataObject(dob, dObj);
                         encryptData(dObj, path, key);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     } else {
                         //如果request中不包含value值，则执行解密操作                      
-                        dObj = decryptData(dObj, path,key,true);
+                        dObj = decryptData(dObj, path, key, true);
+                        this.kmsObj.removeKey(dObj, headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0));
                         return Response.status(Response.Status.NO_CONTENT).build();
                     }
                 }
             }else if("application/jose+json".equals(dob.getMimetype())){
-                 String key=kmsObj.getKey(dObj,dObj.getMetadata().get("keyID"));
-                 if(key==null)
-                     return Response.status(Response.Status.FORBIDDEN).build();
-                 //ciphertext to ciphertext
-                if("application/jose+json".equals(dObj.getMimetype())){
+
+                //ciphertext to ciphertext
+                if ("application/jose+json".equals(dObj.getMimetype())) {
+//                    String key = kmsObj.getKey(dObj, dObj.getMetadata().get("keyID"));
+//                    if (key == null) {
+//                        return Response.status(Response.Status.FORBIDDEN).build();
+//                    }
 //                    dataObjectDao.updateDataObject(dob, dObj);                
 //                    dataObjectDao.modifyDataObject(path,dObj);
 //                    return Response.status(Response.Status.NO_CONTENT).build();                   
+                } //encrypt an existing object
+                else {
+                    this.kmsObj.createKey(dObj, headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0));
+                    dObj = encryptData(dObj, path, this.kmsObj.getKey(dObj, headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0)));
+                    return Response.status(Response.Status.NO_CONTENT).build();
                 }
-                //encrypt an existing object
-                else{                    
-                    dObj = encryptData(dObj, path,key);
-                    return Response.status(Response.Status.NO_CONTENT).build();        
-                }        
             }
 
             return Response.status(Response.Status.BAD_REQUEST).tag(
@@ -798,30 +800,33 @@ public class PathResource {
                         return Response.status(Response.Status.FORBIDDEN).build();
                     //ciphertext to plaintext
                     if (bytes.length != 0) {
-                        dObj.setValue(bytes);                        
-                        encryptData(dObj, path,key);
+                        dObj.setValue(bytes);
+                        encryptData(dObj, path, key);
                         dataObjectDao.modifyDataObject(path, dObj);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     } //如果request中不包含value值，则执行解密操作
                     else {
-                        dObj = decryptData(dObj, path,key,true);
+                        dObj = decryptData(dObj, path, key, true);
+                        this.kmsObj.removeKey(dObj, auth);
                         return Response.status(Response.Status.NO_CONTENT).build();
                     }
                 }
             }
             //if the input is ciphertext            
             if ("application/jose+json".equals(contentType)) {
-                String key= kmsObj.getKey(dObj,auth);
-                if(key==null)
-                    return Response.status(Response.Status.FORBIDDEN).build();                    
                 //ciphertext to ciphertext
                 if ("application/jose+json".equals(dObj.getMimetype())) {
+//                    String key = kmsObj.getKey(dObj, auth);
+//                    if (key == null) {
+//                        return Response.status(Response.Status.FORBIDDEN).build();
+//                    }
 //                    dObj.setValue(bytes);
 //                    dataObjectDao.modifyDataObject(path, dObj);
 //                    return Response.status(Response.Status.NO_CONTENT).build();
                 } //encrypt an existing object
-                else {                    
-                    dObj = encryptData(dObj,path,key);                    
+                else {
+                    this.kmsObj.createKey(dObj, auth);
+                    dObj = encryptData(dObj, path, this.kmsObj.getKey(dObj, auth));
                     return Response.status(Response.Status.NO_CONTENT).build();
                 }
             }

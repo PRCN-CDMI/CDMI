@@ -29,7 +29,6 @@ public class KMS {
         this.auth = auth;
     }
 
-
     public void setFilePath(String filePath) {
         this.filePath = filePath;
     }
@@ -40,7 +39,7 @@ public class KMS {
 //        DataObject dObj = new DataObject();
 //        dObj.setObjectID("stupid");
 //        //kms.createKey(auth, dObj, "flt");
-//        System.out.println("the keyValue = " + kms.getKey(dObj, "flt"));
+//        System.out.println("the keyValue = " + kms.removeKey(dObj, "wqy"));
 //    }
 
     public String getKey(DataObject dObj, String authName) throws Exception {
@@ -71,6 +70,39 @@ public class KMS {
         }
 
         return null;
+    }
+
+    public boolean removeKey(DataObject dObj, String authName) throws Exception {
+        JSONObject jcontent = (JSONObject) JSONValue.parse(this.getContent().toString());
+        if (jcontent.containsKey(authName)) {
+            JSONArray jarray = (JSONArray) jcontent.get(authName);
+            for (int i = 0; i < jarray.size(); i++) {
+                JSONParser jp = new JSONParser(JSONParser.MODE_JSON_SIMPLE);
+                Authorization tmp = jp.parse(jarray.get(i).toString(), Authorization.class);
+                if (tmp.getObjId().equals(dObj.getObjectID())) {
+                    jcontent.remove(authName);
+                    jarray.remove(i);
+                    jcontent.put(authName, jarray);
+                    //File io
+                    try {
+                        File f = new File(filePath);
+                        if (!f.exists()) {
+                            f.createNewFile();
+                        }
+                        BufferedWriter bw = new BufferedWriter(new FileWriter(f, false));
+
+                        bw.write(jcontent.toJSONString());
+                        bw.flush();
+                        bw.close();
+                        return true;
+                    } catch (Exception e) {
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
     }
 
     public boolean createKey(DataObject dObj, String authName) throws Exception {
@@ -117,7 +149,6 @@ public class KMS {
             BufferedWriter bw = new BufferedWriter(new FileWriter(f, false));
 
             bw.write(jcontent.toJSONString());
-            //bw.append(obj.toJSONString(JSONStyle.NO_COMPRESS) + "\r\n");
             bw.flush();
             bw.close();
             return true;
@@ -139,6 +170,3 @@ public class KMS {
         return sb;
     }
 }
-
-
-

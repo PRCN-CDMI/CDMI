@@ -134,12 +134,12 @@
        
     </bean>
     
-    <bean id="keySet" class="key_management.KeySet">
+    <bean id="auth" class="key_management.Authorization">
         <property name="username" value=""/>
         <property name="key" value=""/>
     </bean>
     <bean id="kmsObj" class="key_management.KMS">
-       <property name="keySet" ref="keySet" />
+       <property name="auth" ref="auth" />
        <property name="filePath" value="C:/data/key.txt"/>
     </bean>
 

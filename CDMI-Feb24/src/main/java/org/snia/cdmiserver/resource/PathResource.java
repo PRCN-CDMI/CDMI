@@ -687,15 +687,15 @@ public class PathResource {
            
                 //existing data object is pliantext
                 //plaintext to plaintext
-                if("text/plain".equals(dObj.getMimetype())){
-                    dataObjectDao.updateDataObject(dob, dObj);              
-
+                if ("text/plain".equals(dObj.getMimetype())) {
+                    if(JsonUtils.getValue(bytes, "Authorization", false) != null){
+                        return Response.status(Response.Status.FORBIDDEN).build();
+                    }
+                    dataObjectDao.updateDataObject(dob, dObj);
                     dataObjectDao.modifyDataObject(path, dObj);
-
                     return Response.status(Response.Status.NO_CONTENT).build();
-                }
-                else if ("application/jose+json".equals(dObj.getMimetype())) {
-                    
+                } else if ("application/jose+json".equals(dObj.getMimetype())) {
+
                     //existing data object is ciphertext
                     //ciphertext to plaintext
                     String key=kmsObj.getKey(dObj,headers.getRequestHeader(HttpHeaders.AUTHORIZATION).get(0));
@@ -790,6 +790,9 @@ public class PathResource {
                 //existing data object is pliantext
                 //plaintext to plaintext
                 if ("text/plain".equals(dObj.getMimetype())) {
+                    if (JsonUtils.getValue(bytes, "Authorization", false) != null) {
+                        return Response.status(Response.Status.FORBIDDEN).build();
+                    }
                     dObj.setValue(bytes);
                     dataObjectDao.modifyDataObject(path, dObj);
                     return Response.status(Response.Status.NO_CONTENT).build();

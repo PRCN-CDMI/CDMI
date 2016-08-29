@@ -43,4 +43,16 @@ public class JsonUtils {
         return value;
     }
     
+    public static int getEntityNum(byte[] jsonBytes) throws Exception{
+        JsonFactory f = new JsonFactory();
+        JsonParser jp = f.createJsonParser(jsonBytes);
+        JsonToken tolkein;
+        tolkein = jp.nextToken();// START_OBJECT
+        int num = 0;
+        while ((tolkein = jp.nextToken()) != JsonToken.END_OBJECT) {
+            String key = jp.getCurrentName();
+            num++;
+        }
+        return num/2;
+    }
 }

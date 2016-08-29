@@ -22,7 +22,6 @@ import java.net.URISyntaxException;
 import static org.junit.Assert.assertThat;
 import static org.snia.cdmiserver.ServerContext.given;
 import ID_management.*;
-import key_management.*;
 
 import java.io.*;
 /**
@@ -79,7 +78,7 @@ public class CreateRecord_EOTest {
         
     }
     
-    @Test
+    //@Test
     //jump to postMyDataObject()
     public void testUpdateDataObjectWithPlainObject() throws Exception {
         HttpResponse response = client.request(POST, "/TestContainer/TestObject.txt")

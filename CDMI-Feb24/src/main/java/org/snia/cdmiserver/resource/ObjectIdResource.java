@@ -130,7 +130,7 @@ public class ObjectIdResource {
         }
         PathResource pathResource = new PathResource();
         String objectPath = "object_id" + "/" + objectId;
-        Response resp = pathResource.putDataObject(headers,objectPath,bytes);
+        Response resp = pathResource.putDataObjectByCDMI(headers,objectPath,bytes);
         return resp;
     }
 

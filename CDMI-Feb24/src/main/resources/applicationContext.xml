@@ -54,7 +54,7 @@
     <!-- Register autowired components -->
 
     <context:component-scan base-package="org.snia.cdmiserver"/>
-
+    <context:component-scan base-package="key_management"/>
     <!-- Apache CXF Core Configuration -->
 
     <import resource="classpath:META-INF/cxf/cxf.xml"/>
@@ -96,13 +96,14 @@
     </bean>
 
     <bean id="capabilityResource"              class="org.snia.cdmiserver.resource.CapabilityResource"
-                                             scope="prototype">
-         <property name="capabilityDao" ref="capabilityDao"/>
+          scope="prototype">
+        <property name="capabilityDao" ref="capabilityDao"/>
     </bean>											 
     <bean id="pathResource"                  class="org.snia.cdmiserver.resource.PathResource"
-                                             scope="prototype">
+          scope="prototype">
         <property name="containerDao" ref="containerDao"/>
         <property name="dataObjectDao" ref="dataObjectDao"/>
+        <property name="kmsObj" ref="kmsObj" />
     </bean>
 
     <!-- Application JAX-RS Providers -->
@@ -132,5 +133,14 @@
     <bean id="capabilityDao" class="org.snia.cdmiserver.dao.filesystem.CapabilityDaoImpl">
        
     </bean>
-
+    
+    <bean id="auth" class="key_management.Authorization">
+        <property name="objId" value=""/>
+        <property name="keyId" value=""/>
+        <property name="keyValue" value=""/>
+    </bean>
+  <bean id="kmsObj" class="key_management.KMS">
+        <property name="auth" ref="auth" />
+        <property name="filePath" value="C:/data/key.txt"/>
+    </bean> 
 </beans>
